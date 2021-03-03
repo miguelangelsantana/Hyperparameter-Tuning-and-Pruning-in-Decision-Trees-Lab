@@ -34,8 +34,8 @@ The titanic dataset, available in `'titanic.csv'`, is all cleaned up and preproc
 
 ```python
 # Import the data
-df = None
-
+df = pd.read_csv('titanic.csv')
+df.head()
 ```
 
 ## Create training and test sets
@@ -47,12 +47,12 @@ df = None
 
 ```python
 # Create X and y 
-y = None
-X = None
+y = df['Survived']
+X = df.drop(columns=['Survived', 'PassengerId'], axis=1)
 
 # Split into training and test sets
 SEED = 1
-X_train, X_test, y_train, y_test = None
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=SEED)
 ```
 
 ## Train a vanilla classifier
@@ -65,9 +65,9 @@ __Note:__ The term "vanilla" is used for a machine learning algorithm with its d
 
 
 ```python
-# Train the classifier using training data
-dt = None
-
+# Train the classifier using training data 
+dt = DecisionTreeClassifier(criterion='entropy', random_state=SEED)
+dt.fit(X_train, y_train)
 ```
 
 ## Make predictions 
@@ -77,11 +77,11 @@ dt = None
 
 ```python
 # Make predictions using test set 
-y_pred = None
+y_pred = dt.predict(X_test)
 
 # Check the AUC of predictions
-false_positive_rate, true_positive_rate, thresholds = None
-roc_auc = None
+false_positive_rate, true_positive_rate, thresholds = roc_curve(y_test, y_pred)
+roc_auc = auc(false_positive_rate, true_positive_rate)
 roc_auc
 ```
 
@@ -98,12 +98,38 @@ Let's first check for the best depth parameter for our decision tree:
 
 ```python
 # Identify the optimal tree depth for given data
+max_depths = np.linspace(1, 32, 32, endpoint=True)
+train_results = []
+test_results = []
+for max_depth in max_depths:
+   dt = DecisionTreeClassifier(criterion='entropy', max_depth=max_depth, random_state=SEED)
+   dt.fit(X_train, y_train)
+   train_pred = dt.predict(X_train)
+   false_positive_rate, true_positive_rate, thresholds = roc_curve(y_train, train_pred)
+   roc_auc = auc(false_positive_rate, true_positive_rate)
+   # Add auc score to previous train results
+   train_results.append(roc_auc)
+   y_pred = dt.predict(X_test)
+   false_positive_rate, true_positive_rate, thresholds = roc_curve(y_test, y_pred)
+   roc_auc = auc(false_positive_rate, true_positive_rate)
+   # Add auc score to previous test results
+   test_results.append(roc_auc)
 
+plt.figure(figsize=(12,6))
+plt.plot(max_depths, train_results, 'b', label='Train AUC')
+plt.plot(max_depths, test_results, 'r', label='Test AUC')
+plt.ylabel('AUC score')
+plt.xlabel('Tree depth')
+plt.legend()
+plt.show()
 ```
 
 
 ```python
-# Your observations here 
+# Training error decreases with increasing tree depth - clear sign of overfitting 
+# Test error increases after depth=3 - nothing more to learn from deeper trees (some fluctuations, but not stable)
+# Training and test errors rise rapidly between the depths of 2 and 3
+# Optimal value seen here is 3
 ```
 
 ## Minimum Sample Split
@@ -119,12 +145,33 @@ Now check for the best `min_samples_splits` parameter for our decision tree
 
 ```python
 # Identify the optimal min-samples-split for given data
+min_samples_splits = np.linspace(0.1, 1.0, 10, endpoint=True)
+train_results = []
+test_results = []
+for min_samples_split in min_samples_splits:
+   dt = DecisionTreeClassifier(criterion='entropy', min_samples_split=min_samples_split, random_state=SEED)
+   dt.fit(X_train, y_train)
+   train_pred = dt.predict(X_train)
+   false_positive_rate, true_positive_rate, thresholds =    roc_curve(y_train, train_pred)
+   roc_auc = auc(false_positive_rate, true_positive_rate)
+   train_results.append(roc_auc)
+   y_pred = dt.predict(X_test)
+   false_positive_rate, true_positive_rate, thresholds = roc_curve(y_test, y_pred)
+   roc_auc = auc(false_positive_rate, true_positive_rate)
+   test_results.append(roc_auc)
 
+plt.figure(figsize=(12,6))
+plt.plot(min_samples_splits, train_results, 'b', label='Train AUC')
+plt.plot(min_samples_splits, test_results, 'r', label='Test AUC')
+plt.xlabel('Min. Sample splits')
+plt.legend()
+plt.show()
 ```
 
 
 ```python
-# Your observations here
+# AUC for both test and train data stabilizes at 0.7 
+# Further increase in minimum sample split does not improve learning 
 ```
 
 ## Minimum Sample Leafs
@@ -140,13 +187,34 @@ Now check for the best `min_samples_leafs` parameter value for our decision tree
 
 ```python
 # Calculate the optimal value for minimum sample leafs
-
+min_samples_leafs = np.linspace(0.1, 0.5, 5, endpoint=True)
+train_results = []
+test_results = []
+for min_samples_leaf in min_samples_leafs:
+   dt = DecisionTreeClassifier(criterion='entropy', min_samples_leaf=min_samples_leaf, random_state=SEED)
+   dt.fit(X_train, y_train)
+   train_pred = dt.predict(X_train)
+   false_positive_rate, true_positive_rate, thresholds = roc_curve(y_train, train_pred)
+   roc_auc = auc(false_positive_rate, true_positive_rate)
+   train_results.append(roc_auc)
+   y_pred = dt.predict(X_test)
+   false_positive_rate, true_positive_rate, thresholds = roc_curve(y_test, y_pred)
+   roc_auc = auc(false_positive_rate, true_positive_rate)
+   test_results.append(roc_auc)
+    
+plt.figure(figsize=(12,6))    
+plt.plot(min_samples_leafs, train_results, 'b', label='Train AUC')
+plt.plot(min_samples_leafs, test_results, 'r', label='Test AUC')
+plt.ylabel('AUC score')
+plt.xlabel('Min. Sample Leafs')
+plt.legend()
+plt.show()
 ```
 
 
 ```python
-# Your observations here 
-
+# AUC gives best value between 0.2 and 0.3 for both test and training sets 
+# The accuracy drops down if we continue to increase the parameter value 
 ```
 
 ## Maximum Features
@@ -162,12 +230,35 @@ Now check for the best `max_features` parameter value for our decision tree
 
 ```python
 # Find the best value for optimal maximum feature size
+max_features = list(range(1, X_train.shape[1]))
+train_results = []
+test_results = []
+for max_feature in max_features:
+   dt = DecisionTreeClassifier(criterion='entropy', max_features=max_feature, random_state=SEED)
+   dt.fit(X_train, y_train)
+   train_pred = dt.predict(X_train)
+   false_positive_rate, true_positive_rate, thresholds = roc_curve(y_train, train_pred)
+   roc_auc = auc(false_positive_rate, true_positive_rate)
+   train_results.append(roc_auc)
+   y_pred = dt.predict(X_test)
+   false_positive_rate, true_positive_rate, thresholds = roc_curve(y_test, y_pred)
+   roc_auc = auc(false_positive_rate, true_positive_rate)
+   test_results.append(roc_auc)
 
+plt.figure(figsize=(12,6))
+plt.plot(max_features, train_results, 'b', label='Train AUC')
+plt.plot(max_features, test_results, 'r', label='Test AUC')
+plt.ylabel('AUC score')
+plt.xlabel('max features')
+plt.legend()
+plt.show()
 ```
 
 
 ```python
-# Your observations here
+# No clear effect on the training dataset - flat AUC 
+# Some fluctuations in test AUC but not definitive enough to make a judgement
+# Highest AUC value seen at 6
 ```
 
 ## Re-train the classifier with chosen values
@@ -181,17 +272,25 @@ Now we will use the best values from each training phase above and feed it back 
 
 ```python
 # Train a classifier with optimal values identified above
-dt = None
-
-
-false_positive_rate, true_positive_rate, thresholds = None
-roc_auc = None
+dt = DecisionTreeClassifier(criterion='entropy',
+                           max_features=6,
+                           max_depth=3,
+                           min_samples_split=0.7,
+                           min_samples_leaf=0.25, 
+                           random_state=SEED)
+dt.fit(X_train, y_train)
+y_pred = dt.predict(X_test)
+false_positive_rate, true_positive_rate, thresholds = roc_curve(y_test, y_pred)
+roc_auc = auc(false_positive_rate, true_positive_rate)
 roc_auc
 ```
 
 
 ```python
-# Your observations here
+# We improved the AUC from 0.73 in the vanilla classifier to 0.74 with some tuning. 
+# Due to randomness, results may slightly differ, there is some improvement in most cases. 
+# With more complicated (and bigger) datasets, 
+# we might see an even bigger improvement in AUC/accuracy of the classifier. 
 ```
 
 In the next section, we shall talk about hyperparameter tuning using a technique called "grid-search" to make this process even more granular and decisive. 
